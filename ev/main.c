@@ -112,7 +112,7 @@ main(int argc, char **argv)
 	}
 
 	if(!bstrcmp(val, bget(newval))) {
-		printf("Value unchanged.\n");
+		printf("Value not changed.\n");
 		goto end_label;
 	}
 

@@ -9,3 +9,5 @@ $(P): $(OBJS)
 clean:
 	rm -f *o; rm -f $(P)
 
+install: $(P)
+	cp $(P) ~/bin
