@@ -64,21 +64,24 @@ main(int argc, char **argv)
 		goto end_label;
 	}
 
-        ret = hiredis_lrange(argv[1], 0, - 1, elems);
-        if(ret != 0) {
-                fprintf(stderr, "Couldn't lrange: %s\n", strerror(ret));
-                err = -1;
-                goto end_label;
-        }
-
-	if(barr_cnt(elems) == 0) {
-                fprintf(stderr, "Key doesn't exist\n");
-                err = -1;
-                goto end_label;
+	ret = hiredis_lrange(argv[1], 0, - 1, elems);
+	if(ret != 0) {
+		fprintf(stderr, "Couldn't lrange: %s\n", strerror(ret));
+		err = -1;
+		goto end_label;
 	}
 
+	if(barr_cnt(elems) == 0) {
+		fprintf(stderr, "Key doesn't exist\n");
+		err = -1;
+		goto end_label;
+	}
 
-#if 0
+	for(elem = (bstr_t *) barr_begin(elems);
+	    elem < (bstr_t *) barr_end(elems); ++elem) {
+		bprintf(val, "%s\n", bget(elem));
+	}
+
 	filen = binit();
 	if(filen == NULL) {
 		fprintf(stderr, "Can't allocate filen\n");
@@ -128,6 +131,7 @@ main(int argc, char **argv)
 		goto end_label;
 	}
 
+#if 0
 	ret = hiredis_set(argv[1], newval);
 	if(ret != 0) {
 		fprintf(stderr, "Could not update value in redis.\n");
@@ -136,7 +140,6 @@ main(int argc, char **argv)
 	} else {
 		printf("Update successful.\n");
 	}
-
 #endif
 
 end_label:
