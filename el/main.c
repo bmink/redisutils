@@ -25,6 +25,7 @@ main(int argc, char **argv)
 	bstr_t	*elem;
 	char	*listn;
 	bstr_t	*key;
+	bstr_t	*tmpkey;
 	int	c;
 	int	docreate;
 	barr_t	*newelems;
@@ -33,6 +34,7 @@ main(int argc, char **argv)
 	err = 0;
 	filen = NULL;
 	key = NULL;
+	tmpkey = NULL;
 	cmd = NULL;
 	newval = NULL;
 	elems = NULL;
@@ -188,24 +190,37 @@ main(int argc, char **argv)
 		err = -1;
 		goto end_label;
 	}
-	
-	for(elem = (bstr_t *) barr_begin(newelems);
-	    elem < (bstr_t *) barr_end(newelems); ++elem) {
-		printf("->%s<-\n", bget(elem));
-	}
 
-	printf("%d values.\n", barr_cnt(newelems));
-
-#if 0
-	ret = hiredis_set(bget(key), newval);
-	if(ret != 0) {
-		fprintf(stderr, "Could not update value in redis.\n");
+	tmpkey = binit();
+	if(tmpkey == NULL) {
+		fprintf(stderr, "Can't allocate tmpkey\n");
 		err = -1;
 		goto end_label;
-	} else {
-		printf("Update successful.\n");
 	}
-#endif
+	bprintf(tmpkey, "%s_tmp_%s_%d_%d", KEY_PREF, execn, getpid(),
+	    time(NULL));
+
+	for(elem = (bstr_t *) barr_begin(newelems);
+	    elem < (bstr_t *) barr_end(newelems); ++elem) {
+		if(bstrempty(elem))
+			continue;
+		ret = hiredis_rpush(bget(tmpkey), bget(elem));
+		if(ret != 0) {
+			fprintf(stderr, "Could not rpush element.\n");
+			err = -1;
+			goto end_label;
+		}
+	}
+
+	ret = hiredis_rename(bget(tmpkey), bget(key));
+	if(ret != 0) {
+		fprintf(stderr, "Could not rename.\n");
+		err = -1;
+		goto end_label;
+	}
+
+	printf("List updated successfully.\n");
+
 
 end_label:
 	
@@ -218,6 +233,11 @@ end_label:
 	buninit(&cmd);
 	buninit(&newval);
 	buninit(&key);
+
+	if(err != 0 && !bstrempty(tmpkey)) {
+		(void) hiredis_del(bget(tmpkey), NULL);
+	}
+	buninit(&tmpkey);
 
 	if(elems) {
 		for(elem = (bstr_t *) barr_begin(elems);
