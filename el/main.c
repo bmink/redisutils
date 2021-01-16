@@ -8,7 +8,8 @@
 
 void usage(const char *);
 
-#define EDITOR	"/usr/bin/vi"
+#define EDITOR		"/usr/bin/vi"
+#define KEY_PREF	"list:"
 
 int
 main(int argc, char **argv)
@@ -22,7 +23,8 @@ main(int argc, char **argv)
 	bstr_t	*newval;
 	barr_t	*elems;
 	bstr_t	*elem;
-	char	*key;
+	char	*listn;
+	bstr_t	*key;
 	int	c;
 	int	docreate;
 	barr_t	*newelems;
@@ -30,6 +32,7 @@ main(int argc, char **argv)
 	val = NULL;
 	err = 0;
 	filen = NULL;
+	key = NULL;
 	cmd = NULL;
 	newval = NULL;
 	elems = NULL;
@@ -67,7 +70,8 @@ main(int argc, char **argv)
 		goto end_label;
 	}
 
-	key = argv[optind];
+	listn = argv[optind];
+	
 
 	ret = hiredis_init();
 	if(ret != 0) {
@@ -75,6 +79,14 @@ main(int argc, char **argv)
 		err = -1;
 		goto end_label;
 	}
+
+	key = binit();
+	if(key == NULL) {
+		fprintf(stderr, "Can't allocate key\n");
+		err = -1;
+		goto end_label;
+	}
+	bprintf(key, "%s%s", KEY_PREF, listn);
 
 	elems = barr_init(sizeof(bstr_t));
 	if(elems == NULL) {
@@ -90,7 +102,7 @@ main(int argc, char **argv)
 		goto end_label;
 	}
 
-	ret = hiredis_lrange(key, 0, - 1, elems);
+	ret = hiredis_lrange(bget(key), 0, - 1, elems);
 	if(ret != 0) {
 		fprintf(stderr, "Couldn't lrange: %s\n", strerror(ret));
 		err = -1;
@@ -177,10 +189,15 @@ main(int argc, char **argv)
 		goto end_label;
 	}
 	
+	for(elem = (bstr_t *) barr_begin(newelems);
+	    elem < (bstr_t *) barr_end(newelems); ++elem) {
+		printf("->%s<-\n", bget(elem));
+	}
+
 	printf("%d values.\n", barr_cnt(newelems));
 
 #if 0
-	ret = hiredis_set(key, newval);
+	ret = hiredis_set(bget(key), newval);
 	if(ret != 0) {
 		fprintf(stderr, "Could not update value in redis.\n");
 		err = -1;
@@ -200,6 +217,7 @@ end_label:
 	buninit(&filen);
 	buninit(&cmd);
 	buninit(&newval);
+	buninit(&key);
 
 	if(elems) {
 		for(elem = (bstr_t *) barr_begin(elems);

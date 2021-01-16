@@ -8,7 +8,9 @@
 
 void usage(const char *);
 
-#define EDITOR	"/usr/bin/vi"
+#define EDITOR		"/usr/bin/vi"
+#define KEY_PREFIX	"list:"
+
 
 int
 main(int argc, char **argv)
@@ -18,12 +20,14 @@ main(int argc, char **argv)
 	int	ret;
 	barr_t	*elems;
 	bstr_t	*elem;
-	char	*key;
+	bstr_t	*key;
+	char	*listn;
 	int	c;
 	int	silent;
 
 	err = 0;
 	elems = NULL;
+	key = NULL;
 
 	execn = basename(argv[0]);
 	if(xstrempty(execn)) {
@@ -57,7 +61,15 @@ main(int argc, char **argv)
 		goto end_label;
 	}
 
-	key = argv[optind];
+	listn = argv[optind];
+
+	key = binit();
+	if(key == NULL) {
+		fprintf(stderr, "Could not initialize key\n");
+		err = -1;
+		goto end_label;
+	}
+	bprintf(key, "%s%s", KEY_PREFIX, listn);
 
 	ret = hiredis_init();
 	if(ret != 0) {
@@ -73,7 +85,7 @@ main(int argc, char **argv)
 		goto end_label;
 	}
 
-	ret = hiredis_lrange(key, 0, - 1, elems);
+	ret = hiredis_lrange(bget(key), 0, - 1, elems);
 	if(ret != 0) {
 		fprintf(stderr, "Couldn't lrange: %s\n", strerror(ret));
 		err = -1;
@@ -102,6 +114,8 @@ end_label:
 		}
 		barr_uninit(&elems);
 	}
+
+	buninit(&key);
 
 	hiredis_uninit();
 
